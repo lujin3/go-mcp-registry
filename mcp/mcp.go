@@ -1,49 +1,96 @@
 package mcp
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
+    "bytes"
+    "context"
+    "encoding/json"
+    "fmt"
+    "io"
+    "net/http"
+    "net/url"
+    "strings"
+    "time"
 
-	"github.com/google/go-querystring/query"
+    "github.com/google/go-querystring/query"
 )
 
 const (
-	defaultBaseURL = "https://registry.modelcontextprotocol.io/"
-	userAgent      = "go-mcp-registry/v0.1.0"
-	mediaTypeJSON  = "application/json"
+    defaultBaseURL = "https://registry.modelcontextprotocol.io/"
+    userAgent      = "go-mcp-registry/v0.1.0"
+    mediaTypeJSON  = "application/json"
 )
+
+// Option represents a function that can configure a Client.
+type Option func(*Client) error
+
+// WithBaseURL returns an Option that sets the base URL for the client.
+// The URL must be a valid HTTP or HTTPS URL. If the URL doesn't end with
+// a trailing slash, one will be added automatically.
+func WithBaseURL(baseURL string) Option {
+    return func(c *Client) error {
+        if baseURL == "" {
+            return fmt.Errorf("base URL cannot be empty")
+        }
+
+        // Parse the URL to validate it
+        parsedURL, err := url.Parse(baseURL)
+        if err != nil {
+            return fmt.Errorf("invalid base URL: %w", err)
+        }
+
+        // Ensure the scheme is HTTP or HTTPS
+        if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+            return fmt.Errorf("base URL must use HTTP or HTTPS scheme, got: %s", parsedURL.Scheme)
+        }
+
+        // Ensure trailing slash for consistent URL joining
+        if !strings.HasSuffix(parsedURL.Path, "/") {
+            parsedURL.Path += "/"
+        }
+
+        c.BaseURL = parsedURL
+        return nil
+    }
+}
 
 // NewClient returns a new MCP Registry API client. If a nil httpClient is
 // provided, a new http.Client will be used. To use API methods which require
 // authentication, provide an http.Client that will perform the authentication
 // for you (such as that provided by the golang.org/x/oauth2 library).
-func NewClient(httpClient *http.Client) *Client {
-	if httpClient == nil {
-		httpClient = &http.Client{
-			Timeout: 30 * time.Second,
-		}
-	}
+//
+// Options can be provided to configure the client behavior, such as setting
+// a custom base URL with WithBaseURL.
+func NewClient(httpClient *http.Client, opts ...Option) (*Client, error) {
+    if httpClient == nil {
+        httpClient = &http.Client{
+            Timeout: 30 * time.Second,
+        }
+    }
 
-	baseURL, _ := url.Parse(defaultBaseURL)
+    // Parse the default base URL
+    baseURL, err := url.Parse(defaultBaseURL)
+    if err != nil {
+        return nil, fmt.Errorf("failed to parse default base URL: %w", err)
+    }
 
-	c := &Client{
-		client:     httpClient,
-		BaseURL:    baseURL,
-		UserAgent:  userAgent,
-		rateLimits: make(map[string]Rate),
-	}
+    c := &Client{
+        client:     httpClient,
+        BaseURL:    baseURL,
+        UserAgent:  userAgent,
+        rateLimits: make(map[string]Rate),
+    }
 
-	c.common.client = c
-	c.Servers = (*ServersService)(&c.common)
+    c.common.client = c
+    c.Servers = (*ServersService)(&c.common)
 
-	return c
+    // Apply provided options
+    for _, opt := range opts {
+        if err := opt(c); err != nil {
+            return nil, err
+        }
+    }
+
+    return c, nil
 }
 
 // NewRequest creates an API request. A relative URL can be provided in urlStr,
@@ -52,65 +99,65 @@ func NewClient(httpClient *http.Client) *Client {
 // specified, the value pointed to by body is JSON encoded and included as the
 // request body.
 func (c *Client) NewRequest(method, urlStr string, body any) (*http.Request, error) {
-	if !strings.HasSuffix(c.BaseURL.Path, "/") {
-		return nil, fmt.Errorf("BaseURL must have a trailing slash, but %q does not", c.BaseURL)
-	}
+    if !strings.HasSuffix(c.BaseURL.Path, "/") {
+        return nil, fmt.Errorf("BaseURL must have a trailing slash, but %q does not", c.BaseURL)
+    }
 
-	u, err := c.BaseURL.Parse(urlStr)
-	if err != nil {
-		return nil, err
-	}
+    u, err := c.BaseURL.Parse(urlStr)
+    if err != nil {
+        return nil, err
+    }
 
-	var buf io.ReadWriter
-	if body != nil {
-		buf = &bytes.Buffer{}
-		enc := json.NewEncoder(buf)
-		enc.SetEscapeHTML(false)
-		if err := enc.Encode(body); err != nil {
-			return nil, err
-		}
-	}
+    var buf io.ReadWriter
+    if body != nil {
+        buf = &bytes.Buffer{}
+        enc := json.NewEncoder(buf)
+        enc.SetEscapeHTML(false)
+        if err := enc.Encode(body); err != nil {
+            return nil, err
+        }
+    }
 
-	req, err := http.NewRequest(method, u.String(), buf)
-	if err != nil {
-		return nil, err
-	}
+    req, err := http.NewRequest(method, u.String(), buf)
+    if err != nil {
+        return nil, err
+    }
 
-	if body != nil {
-		req.Header.Set("Content-Type", mediaTypeJSON)
-	}
-	req.Header.Set("Accept", mediaTypeJSON)
-	if c.UserAgent != "" {
-		req.Header.Set("User-Agent", c.UserAgent)
-	}
+    if body != nil {
+        req.Header.Set("Content-Type", mediaTypeJSON)
+    }
+    req.Header.Set("Accept", mediaTypeJSON)
+    if c.UserAgent != "" {
+        req.Header.Set("User-Agent", c.UserAgent)
+    }
 
-	return req, nil
+    return req, nil
 }
 
 // newResponse creates a new Response for the provided http.Response.
 // The Response is returned along with any error encountered while
 // parsing rate limit headers.
 func newResponse(r *http.Response) *Response {
-	response := &Response{Response: r}
-	response.Rate = parseRate(r)
-	return response
+    response := &Response{Response: r}
+    response.Rate = parseRate(r)
+    return response
 }
 
 // parseRate parses rate limit headers from the response.
 func parseRate(r *http.Response) Rate {
-	var rate Rate
-	if limit := r.Header.Get("X-RateLimit-Limit"); limit != "" {
-		fmt.Sscanf(limit, "%d", &rate.Limit)
-	}
-	if remaining := r.Header.Get("X-RateLimit-Remaining"); remaining != "" {
-		fmt.Sscanf(remaining, "%d", &rate.Remaining)
-	}
-	if reset := r.Header.Get("X-RateLimit-Reset"); reset != "" {
-		if v, _ := time.Parse(time.RFC3339, reset); !v.IsZero() {
-			rate.Reset = v
-		}
-	}
-	return rate
+    var rate Rate
+    if limit := r.Header.Get("X-RateLimit-Limit"); limit != "" {
+        fmt.Sscanf(limit, "%d", &rate.Limit)
+    }
+    if remaining := r.Header.Get("X-RateLimit-Remaining"); remaining != "" {
+        fmt.Sscanf(remaining, "%d", &rate.Remaining)
+    }
+    if reset := r.Header.Get("X-RateLimit-Reset"); reset != "" {
+        if v, _ := time.Parse(time.RFC3339, reset); !v.IsZero() {
+            rate.Reset = v
+        }
+    }
+    return rate
 }
 
 // Do sends an API request and returns the API response. The API response is
@@ -122,76 +169,76 @@ func parseRate(r *http.Response) Rate {
 // The provided ctx must be non-nil. If it is canceled or times out,
 // ctx.Err() will be returned.
 func (c *Client) Do(ctx context.Context, req *http.Request, v any) (*Response, error) {
-	if ctx == nil {
-		return nil, fmt.Errorf("context must be non-nil")
-	}
+    if ctx == nil {
+        return nil, fmt.Errorf("context must be non-nil")
+    }
 
-	req = req.WithContext(ctx)
+    req = req.WithContext(ctx)
 
-	c.clientMu.Lock()
-	resp, err := c.client.Do(req)
-	c.clientMu.Unlock()
-	if err != nil {
-		// If we got an error, and the context has been canceled,
-		// the context's error is probably more useful.
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-		return nil, err
-	}
-	defer resp.Body.Close()
+    c.clientMu.Lock()
+    resp, err := c.client.Do(req)
+    c.clientMu.Unlock()
+    if err != nil {
+        // If we got an error, and the context has been canceled,
+        // the context's error is probably more useful.
+        select {
+        case <-ctx.Done():
+            return nil, ctx.Err()
+        default:
+        }
+        return nil, err
+    }
+    defer resp.Body.Close()
 
-	response := newResponse(resp)
+    response := newResponse(resp)
 
-	// Store rate limit information
-	c.rateMu.Lock()
-	c.rateLimits[req.URL.Path] = response.Rate
-	c.rateMu.Unlock()
+    // Store rate limit information
+    c.rateMu.Lock()
+    c.rateLimits[req.URL.Path] = response.Rate
+    c.rateMu.Unlock()
 
-	err = CheckResponse(resp)
-	if err != nil {
-		return response, err
-	}
+    err = CheckResponse(resp)
+    if err != nil {
+        return response, err
+    }
 
-	if v != nil {
-		if w, ok := v.(io.Writer); ok {
-			io.Copy(w, resp.Body)
-		} else {
-			decErr := json.NewDecoder(resp.Body).Decode(v)
-			if decErr == io.EOF {
-				decErr = nil // ignore EOF errors caused by empty response body
-			}
-			if decErr != nil {
-				err = decErr
-			}
-		}
-	}
+    if v != nil {
+        if w, ok := v.(io.Writer); ok {
+            io.Copy(w, resp.Body)
+        } else {
+            decErr := json.NewDecoder(resp.Body).Decode(v)
+            if decErr == io.EOF {
+                decErr = nil // ignore EOF errors caused by empty response body
+            }
+            if decErr != nil {
+                err = decErr
+            }
+        }
+    }
 
-	return response, err
+    return response, err
 }
 
 // addOptions adds the parameters in opts as URL query parameters to s.
 // opts must be a struct whose fields may contain "url" tags.
 func addOptions(s string, opts any) (string, error) {
-	v, err := query.Values(opts)
-	if err != nil {
-		return s, err
-	}
+    v, err := query.Values(opts)
+    if err != nil {
+        return s, err
+    }
 
-	u, err := url.Parse(s)
-	if err != nil {
-		return s, err
-	}
+    u, err := url.Parse(s)
+    if err != nil {
+        return s, err
+    }
 
-	if q := v.Encode(); q != "" {
-		if u.RawQuery != "" {
-			u.RawQuery = u.RawQuery + "&" + q
-		} else {
-			u.RawQuery = q
-		}
-	}
+    if q := v.Encode(); q != "" {
+        if u.RawQuery != "" {
+            u.RawQuery = u.RawQuery + "&" + q
+        } else {
+            u.RawQuery = q
+        }
+    }
 
-	return u.String(), nil
+    return u.String(), nil
 }

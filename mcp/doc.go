@@ -27,175 +27,188 @@
 //
 // Import the package:
 //
-//	import "github.com/leefowlercu/go-mcp-registry/mcp"
+//    import "github.com/leefowlercu/go-mcp-registry/mcp"
 //
 // Create a new client:
 //
-//	client := mcp.NewClient(nil)
+//    client, err := mcp.NewClient(nil)
+//    if err != nil {
+//        log.Fatal(err)
+//    }
 //
 // You can provide a custom HTTP client for advanced configuration:
 //
-//	httpClient := &http.Client{
-//		Timeout: 60 * time.Second,
-//	}
-//	client := mcp.NewClient(httpClient)
+//    httpClient := &http.Client{
+//        Timeout: 60 * time.Second,
+//    }
+//    client, err := mcp.NewClient(httpClient)
+//    if err != nil {
+//        log.Fatal(err)
+//    }
+//
+// You can also configure a custom base URL:
+//
+//    client, err := mcp.NewClient(nil, mcp.WithBaseURL("https://my-registry.example.com"))
+//    if err != nil {
+//        log.Fatal(err)
+//    }
 //
 // List servers:
 //
-//	servers, resp, err := client.Servers.List(context.Background(), nil)
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	fmt.Printf("Found %d servers\n", len(servers.Servers))
+//    servers, resp, err := client.Servers.List(context.Background(), nil)
+//    if err != nil {
+//        log.Fatal(err)
+//    }
+//    fmt.Printf("Found %d servers\n", len(servers.Servers))
 //
 // List servers with options:
 //
-//	opts := &mcp.ServerListOptions{
-//		Search: "github",
-//		Version: "latest",
-//		ListOptions: mcp.ListOptions{
-//			Limit: 20,
-//		},
-//	}
-//	servers, resp, err := client.Servers.List(context.Background(), opts)
+//    opts := &mcp.ServerListOptions{
+//        Search: "github",
+//        Version: "latest",
+//        ListOptions: mcp.ListOptions{
+//            Limit: 20,
+//        },
+//    }
+//    servers, resp, err := client.Servers.List(context.Background(), opts)
 //
 // Get a specific server by name:
 //
-//	server, resp, err := client.Servers.Get(context.Background(), "ai.waystation/gmail", nil)
+//    server, resp, err := client.Servers.Get(context.Background(), "ai.waystation/gmail", nil)
 //
 // Get a specific version of a server by name:
 //
-//	opts := &mcp.ServerGetOptions{Version: "1.0.0"}
-//	server, resp, err := client.Servers.Get(context.Background(), "ai.waystation/gmail", opts)
+//    opts := &mcp.ServerGetOptions{Version: "1.0.0"}
+//    server, resp, err := client.Servers.Get(context.Background(), "ai.waystation/gmail", opts)
 //
 // List all versions of a server by name:
 //
-//	versions, resp, err := client.Servers.ListVersionsByName(context.Background(), "ai.waystation/gmail")
+//    versions, resp, err := client.Servers.ListVersionsByName(context.Background(), "ai.waystation/gmail")
 //
 // List servers by name (returns all versions):
 //
-//	servers, _, err := client.Servers.ListVersionsByName(context.Background(), "ai.waystation/gmail")
-//	if len(servers) > 0 {
-//		fmt.Printf("Found %d versions of %s\n", len(servers), servers[0].Name)
-//	}
+//    servers, _, err := client.Servers.ListVersionsByName(context.Background(), "ai.waystation/gmail")
+//    if len(servers) > 0 {
+//        fmt.Printf("Found %d versions of %s\n", len(servers), servers[0].Name)
+//    }
 //
 // Get latest version of a server by name:
 //
-//	server, _, err := client.Servers.GetLatestVersion(context.Background(), "ai.waystation/gmail")
-//	if server != nil {
-//		fmt.Printf("Latest version: %s (v%s)\n", server.Name, server.Version)
-//	}
+//    server, _, err := client.Servers.GetLatestVersion(context.Background(), "ai.waystation/gmail")
+//    if server != nil {
+//        fmt.Printf("Latest version: %s (v%s)\n", server.Name, server.Version)
+//    }
 //
 // Get specific version of a server by name:
 //
-//	server, _, err := client.Servers.GetExactVersion(context.Background(), "ai.waystation/gmail", "0.3.1")
-//	if server != nil {
-//		fmt.Printf("Found version: %s (v%s)\n", server.Name, server.Version)
-//	}
+//    server, _, err := client.Servers.GetExactVersion(context.Background(), "ai.waystation/gmail", "0.3.1")
+//    if server != nil {
+//        fmt.Printf("Found version: %s (v%s)\n", server.Name, server.Version)
+//    }
 //
 // Get latest active version of a server by name (semantic version comparison):
 //
-//	server, _, err := client.Servers.GetLatestActiveVersion(context.Background(), "ai.waystation/gmail")
-//	if server != nil {
-//		isActive := server.DeletedAt == nil && server.DeprecatedAt == nil
-//		fmt.Printf("Latest active: %s (v%s) - active: %v\n", server.Name, server.Version, isActive)
-//	}
+//    server, _, err := client.Servers.GetLatestActiveVersion(context.Background(), "ai.waystation/gmail")
+//    if server != nil {
+//        isActive := server.DeletedAt == nil && server.DeprecatedAt == nil
+//        fmt.Printf("Latest active: %s (v%s) - active: %v\n", server.Name, server.Version, isActive)
+//    }
 //
 // Get servers updated since a specific timestamp:
 //
-//	since := time.Now().AddDate(0, 0, -7) // Last 7 days
-//	servers, _, err := client.Servers.ListByUpdatedSince(context.Background(), since)
-//	if err == nil {
-//		fmt.Printf("Found %d servers updated since %s\n", len(servers), since.Format("2006-01-02"))
-//		for _, server := range servers {
-//			fmt.Printf("  %s (v%s) - updated: %s\n",
-//				server.Name, server.Version,
-//				server.Meta.Official.UpdatedAt.Format("2006-01-02"))
-//		}
-//	}
+//    since := time.Now().AddDate(0, 0, -7) // Last 7 days
+//    servers, _, err := client.Servers.ListByUpdatedSince(context.Background(), since)
+//    if err == nil {
+//        fmt.Printf("Found %d servers updated since %s\n", len(servers), since.Format("2006-01-02"))
+//        for _, server := range servers {
+//            fmt.Printf("  %s (v%s) - updated: %s\n",
+//                server.Name, server.Version,
+//                server.Meta.Official.UpdatedAt.Format("2006-01-02"))
+//        }
+//    }
 //
 // # Pagination
 //
 // The API uses cursor-based pagination following the MCP Protocol specification.
 // Use ListOptions to control pagination:
 //
-//	var allServers []registryv0.ServerJSON
-//	opts := &mcp.ServerListOptions{
-//		ListOptions: mcp.ListOptions{Limit: 50},
-//	}
+//    var allServers []registryv0.ServerJSON
+//    opts := &mcp.ServerListOptions{
+//        ListOptions: mcp.ListOptions{Limit: 50},
+//    }
 //
-//	for {
-//		resp, _, err := client.Servers.List(context.Background(), opts)
-//		if err != nil {
-//			break
-//		}
-//		allServers = append(allServers, resp.Servers...)
+//    for {
+//        resp, _, err := client.Servers.List(context.Background(), opts)
+//        if err != nil {
+//            break
+//        }
+//        allServers = append(allServers, resp.Servers...)
 //
-//		if resp.Metadata.NextCursor == "" {
-//			break // No more pages
-//		}
-//		opts.Cursor = resp.Metadata.NextCursor
-//	}
+//        if resp.Metadata.NextCursor == "" {
+//            break // No more pages
+//        }
+//        opts.Cursor = resp.Metadata.NextCursor
+//    }
 //
 // Or use the convenience method to fetch all pages automatically:
 //
-//	servers, _, err := client.Servers.ListAll(context.Background(), nil)
+//    servers, _, err := client.Servers.ListAll(context.Background(), nil)
 //
 // # Error Handling
 //
 // The library provides structured error handling with custom error types:
 //
-//	servers, resp, err := client.Servers.List(context.Background(), nil)
-//	if err != nil {
-//		if rateLimitErr, ok := err.(*mcp.RateLimitError); ok {
-//			fmt.Printf("Rate limited. Reset at: %v\n", rateLimitErr.Rate.Reset)
-//			return
-//		}
-//		if apiErr, ok := err.(*mcp.ErrorResponse); ok {
-//			fmt.Printf("API error: %v\n", apiErr.Message)
-//			return
-//		}
-//		// Handle other errors
-//		log.Fatal(err)
-//	}
+//    servers, resp, err := client.Servers.List(context.Background(), nil)
+//    if err != nil {
+//        if rateLimitErr, ok := err.(*mcp.RateLimitError); ok {
+//            fmt.Printf("Rate limited. Reset at: %v\n", rateLimitErr.Rate.Reset)
+//            return
+//        }
+//        if apiErr, ok := err.(*mcp.ErrorResponse); ok {
+//            fmt.Printf("API error: %v\n", apiErr.Message)
+//            return
+//        }
+//        // Handle other errors
+//        log.Fatal(err)
+//    }
 //
 // # Rate Limiting
 //
 // Rate limit information is tracked and available in response objects:
 //
-//	servers, resp, err := client.Servers.List(context.Background(), nil)
-//	if err == nil && resp.Rate.Limit > 0 {
-//		fmt.Printf("Rate Limit: %d/%d remaining\n",
-//			resp.Rate.Remaining, resp.Rate.Limit)
-//		fmt.Printf("Reset at: %v\n", resp.Rate.Reset)
-//	}
+//    servers, resp, err := client.Servers.List(context.Background(), nil)
+//    if err == nil && resp.Rate.Limit > 0 {
+//        fmt.Printf("Rate Limit: %d/%d remaining\n",
+//            resp.Rate.Remaining, resp.Rate.Limit)
+//        fmt.Printf("Reset at: %v\n", resp.Rate.Reset)
+//    }
 //
 // # Service Architecture
 //
 // The client follows a service-oriented architecture where different API
 // endpoints are organized into service structs:
 //
-//	// Available services
-//	client.Servers  // Server-related operations
+//    // Available services
+//    client.Servers  // Server-related operations
 //
 // Each service provides methods for different operations:
 //
-//	// ServersService methods
-//	List(ctx, opts) (*ServerListResponse, *Response, error)
-//	Get(ctx, name, opts) (*ServerJSON, *Response, error)
-//	ListVersionsByName(ctx, name) ([]ServerJSON, *Response, error)
-//	ListAll(ctx, opts) ([]ServerJSON, *Response, error)                        // Helper - fetches all pages
-//	ListByUpdatedSince(ctx, since) ([]ServerJSON, *Response, error)            // Helper - filters by update time
-//	GetLatestVersion(ctx, name) (*ServerJSON, *Response, error)                // Helper - latest version via API
-//	GetExactVersion(ctx, name, version) (*ServerJSON, *Response, error)        // Helper - specific version via API
-//	GetLatestActiveVersion(ctx, name) (*ServerJSON, *Response, error)          // Helper - latest active by semver
+//    // ServersService methods
+//    List(ctx, opts) (*ServerListResponse, *Response, error)
+//    Get(ctx, name, opts) (*ServerJSON, *Response, error)
+//    ListVersionsByName(ctx, name) ([]ServerJSON, *Response, error)
+//    ListAll(ctx, opts) ([]ServerJSON, *Response, error)                        // Helper - fetches all pages
+//    ListByUpdatedSince(ctx, since) ([]ServerJSON, *Response, error)            // Helper - filters by update time
+//    GetLatestVersion(ctx, name) (*ServerJSON, *Response, error)                // Helper - latest version via API
+//    GetExactVersion(ctx, name, version) (*ServerJSON, *Response, error)        // Helper - specific version via API
+//    GetLatestActiveVersion(ctx, name) (*ServerJSON, *Response, error)          // Helper - latest active by semver
 //
 // # Type Reuse
 //
 // This SDK imports and uses official types from the MCP Registry repository
 // to ensure perfect API compatibility:
 //
-//	import registryv0 "github.com/modelcontextprotocol/registry/pkg/api/v0"
+//    import registryv0 "github.com/modelcontextprotocol/registry/pkg/api/v0"
 //
 // Key types include:
 //
@@ -209,13 +222,13 @@
 // The package provides helper functions for working with pointer types,
 // following Go API conventions:
 //
-//	mcp.String("value")    // Returns *string
-//	mcp.Int(42)           // Returns *int
-//	mcp.Bool(true)        // Returns *bool
+//    mcp.String("value")    // Returns *string
+//    mcp.Int(42)           // Returns *int
+//    mcp.Bool(true)        // Returns *bool
 //
-//	mcp.StringValue(ptr)  // Returns string value or ""
-//	mcp.IntValue(ptr)     // Returns int value or 0
-//	mcp.BoolValue(ptr)    // Returns bool value or false
+//    mcp.StringValue(ptr)  // Returns string value or ""
+//    mcp.IntValue(ptr)     // Returns int value or 0
+//    mcp.BoolValue(ptr)    // Returns bool value or false
 //
 // # Examples
 //
