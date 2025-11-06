@@ -1,4 +1,4 @@
-module github.com/leefowlercu/go-mcp-registry
+module github.com/lujin3/go-mcp-registry
 
 go 1.25
 
