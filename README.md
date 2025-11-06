@@ -54,7 +54,10 @@ import (
 
 func main() {
     // Create a client
-    client := mcp.NewClient(nil)
+    client, err := mcp.NewClient(nil)
+    if err != nil {
+        log.Fatal(err)
+    }
     ctx := context.Background()
 
     // List servers
@@ -93,13 +96,25 @@ import (
 )
 
 // Default client
-client := mcp.NewClient(nil)
+client, err := mcp.NewClient(nil)
+if err != nil {
+    log.Fatal(err)
+}
 
 // Custom HTTP client with timeout
 httpClient := &http.Client{
     Timeout: 60 * time.Second,
 }
-client := mcp.NewClient(httpClient)
+client, err = mcp.NewClient(httpClient)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Custom base URL
+client, err = mcp.NewClient(nil, mcp.WithBaseURL("https://my-registry.example.com"))
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 ### Listing Servers
