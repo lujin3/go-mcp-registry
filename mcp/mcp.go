@@ -39,13 +39,22 @@ func WithBaseURL(baseURL string) Option {
         }
 
         // Ensure the scheme is HTTP or HTTPS
+        if parsedURL.Scheme == "" {
+            return fmt.Errorf("invalid base URL: missing scheme")
+        }
         if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
             return fmt.Errorf("base URL must use HTTP or HTTPS scheme, got: %s", parsedURL.Scheme)
         }
 
         // Ensure trailing slash for consistent URL joining
-        if !strings.HasSuffix(parsedURL.Path, "/") {
-            parsedURL.Path += "/"
+        // We need to add it to the full URL string to preserve query params
+        urlStr := parsedURL.String()
+        if !strings.HasSuffix(urlStr, "/") {
+            urlStr += "/"
+            parsedURL, err = url.Parse(urlStr)
+            if err != nil {
+                return fmt.Errorf("invalid base URL: %w", err)
+            }
         }
 
         c.BaseURL = parsedURL

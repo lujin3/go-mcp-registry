@@ -7,9 +7,31 @@
 *.dll
 *.so
 *.dylib
+*.bin
 
 # Test binary, built with `go test -c`
 *.test
+
+# Archive files
+*.tar.gz
+*.tgz
+*.gz
+*.zip
+*.tar
+*.bz2
+*.7z
+*.rar
+*.xz
+
+# Package files
+*.pkg
+*.deb
+*.rpm
+
+# Go build output directories
+/bin/
+/dist/
+/build/
 
 # Code coverage profiles and other test artifacts
 *.out
